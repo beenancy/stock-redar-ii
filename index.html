@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cozy Stock Radar · AI Investing Simulator</title>
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="./index.css">
+</head>
+<body>
+
+  <!-- App Shell -->
+  <div class="app-shell">
+    
+    <!-- Sticky Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <a href="#" class="topbar-brand" id="brandLink">
+          <div class="topbar-brand-icon">⚡</div>
+          <h1 class="topbar-brand-name">STOCK RADAR<span>cozy</span></h1>
+        </a>
+      </div>
+      
+      <div class="topbar-center">
+        <!-- Live Market Status -->
+        <div class="market-pulse">
+          <span class="market-pulse-dot" id="marketDot"></span>
+          <span id="marketPulseText">ตลาดหุ้นสหรัฐฯ ปิดแล้ว</span>
+        </div>
+      </div>
+      
+      <div class="topbar-right">
+        <!-- Simulated User Portfolio Balance -->
+        <div class="user-profile-badge" id="profileBadge" title="ดูพอร์ตของฉัน">
+          <div class="user-avatar" id="userAvatar">U</div>
+          <span class="user-name" id="userPortfolioVal">$100,000.00</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Body Container -->
+    <main class="page-body">
+      
+      <!-- ====================================================================
+           LEFT SIDEBAR (Filters)
+           ==================================================================== -->
+      <aside class="sidebar" id="sidebarPanel">
+        <h2 class="sidebar-section-title">ตัวคัดกรองเรดาร์</h2>
+        
+        <!-- Search -->
+        <div class="filter-group">
+          <label for="searchInput" class="filter-label">ค้นหาหุ้น</label>
+          <div class="search-wrap">
+            <input type="search" id="searchInput" class="search-input" placeholder="พิมพ์ชื่อย่อหุ้น เช่น SOUN..." autocomplete="off">
+            <span class="search-icon">🔍</span>
+          </div>
+        </div>
+
+        <!-- Market Cap Segmented Buttons -->
+        <div class="filter-group">
+          <label class="filter-label">Market Capitalization</label>
+          <div class="filter-pills" id="capFilters">
+            <button class="filter-pill active" data-cap="all">ทั้งหมด</button>
+            <button class="filter-pill" data-cap="big">Mega/Large</button>
+            <button class="filter-pill" data-cap="mid">Medium</button>
+            <button class="filter-pill" data-cap="small">Small/Micro</button>
+          </div>
+        </div>
+
+        <!-- Score Threshold Slider -->
+        <div class="filter-group slider-wrap">
+          <div class="slider-header">
+            <label for="scoreThreshold" class="filter-label">คะแนนเรดาร์ขั้นต่ำ</label>
+            <span class="slider-value" id="scoreThresholdVal">45</span>
+          </div>
+          <input type="range" id="scoreThreshold" class="filter-slider" min="10" max="95" value="45">
+        </div>
+
+        <!-- Quality Checkbox -->
+        <div class="filter-group">
+          <label class="checkbox-toggle" for="qualityOnly">
+            <input type="checkbox" id="qualityOnly">
+            <span>เอาเฉพาะหุ้นพื้นฐานแกร่ง (Quality ≥ 60)</span>
+          </label>
+        </div>
+
+        <!-- Volume Surge Checkbox -->
+        <div class="filter-group">
+          <label class="checkbox-toggle" for="volumeSurgeFilter">
+            <input type="checkbox" id="volumeSurgeFilter">
+            <span>เอาเฉพาะที่มี Volume Surge (≥ 2.0x)</span>
+          </label>
+        </div>
+
+        <!-- Technical Presets Segmented Buttons -->
+        <div class="filter-group">
+          <label class="filter-label">สัญญาณเทคนิคอล (Technical Presets)</label>
+          <div class="filter-pills" id="techFilters">
+            <button class="filter-pill active" data-tech="all">ทั้งหมด</button>
+            <button class="filter-pill" data-tech="goldencross">Golden Cross ⚡</button>
+            <button class="filter-pill" data-tech="oversold">RSI Oversold 📉</button>
+            <button class="filter-pill" data-tech="volume">Vol Surge 🔥</button>
+          </div>
+        </div>
+
+        <!-- Daily Newspaper Clipping -->
+        <div class="newspaper-card">
+          <div class="newspaper-tag">📰 BREAKING NEWS</div>
+          <h4 class="newspaper-title" id="newsHeadline">ตลาดหุ้นเปิดตัวอย่างเป็นทางการ</h4>
+          <p class="newspaper-content" id="newsBody">ระบบจำลองการลงทุนเปิดบริการแล้ว ดึงราคาจาก Yahoo Finance ได้เรียลไทม์ โฮชิเซ็นยินดีต้อนรับนักเทรด!</p>
+          <div class="newspaper-stamp" id="newsStamp">STABLE</div>
+        </div>
+
+        <!-- Database Sync Widget -->
+        <div class="sync-card">
+          <div class="sync-meta">
+            <div class="sync-meta-item">
+              <span class="sync-meta-label">จำนวนหุ้น</span>
+              <span class="sync-meta-val" id="dbCountText">8 หุ้น</span>
+            </div>
+            <div class="sync-meta-item" style="text-align: right;">
+              <span class="sync-meta-label">แหล่งข้อมูล</span>
+              <span class="sync-meta-val" style="color: var(--olive);">Cozy Simulator</span>
+            </div>
+          </div>
+          
+          <div class="progress-container">
+            <div class="progress-bar" id="syncProgress"></div>
+          </div>
+          
+          <button class="btn-extrude matcha" id="btnUpdateData" style="width: 100%; padding: 10px;">
+            🔄 อัพเดทข้อมูลเรดาร์ (Yahoo)
+          </button>
+          <div class="sync-status" id="syncStatus">พร้อมแสกนหาหุ้นโมเมนตัม</div>
+        </div>
+      </aside>
+
+      <!-- ====================================================================
+           CENTER FEED (Radar Notebook & Table)
+           ==================================================================== -->
+      <section class="feed">
+        
+        <!-- Spiral Notebook -->
+        <div class="notebook">
+          <!-- Notebook Wire Rings -->
+          <div class="notebook-rings">
+            <div class="notebook-ring"></div>
+            <div class="notebook-ring"></div>
+            <div class="notebook-ring"></div>
+            <div class="notebook-ring"></div>
+            <div class="notebook-ring"></div>
+            <div class="notebook-ring"></div>
+            <div class="notebook-ring"></div>
+            <div class="notebook-ring"></div>
+          </div>
+
+          <div class="notebook-header">
+            <div class="notebook-title-area">
+              <h2 class="notebook-title" id="feedTitle">เรดาร์สแกนหุ้นโมเมนตัม</h2>
+              <p class="notebook-subtitle" id="feedSubtitle">US Small-Cap & AI Momentum Screener</p>
+            </div>
+            
+            <a href="#" class="paper-clip-note" id="agendaNoteBtn">
+              📋 บันทึกประวัติเทรด
+            </a>
+          </div>
+
+          <!-- Summary Grid -->
+          <div class="summary-grid" id="screenerSummary">
+            <div class="summary-card">
+              <span class="summary-label">ติดเรดาร์</span>
+              <span class="summary-val" id="sumRadarCount">0</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label">Avg Quality</span>
+              <span class="summary-val" id="sumAvgQuality">0</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label">Breakout สูงสุด</span>
+              <span class="summary-val" id="sumTopBreakout">-</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label">Vol Surge สูงสุด</span>
+              <span class="summary-val" id="sumTopVolume">-</span>
+            </div>
+          </div>
+
+          <!-- Main Scanner View (Tab Panel) -->
+          <div class="view-panel active" id="viewScanner">
+            <!-- Index Tabs -->
+            <div class="index-tabs">
+              <div class="index-tab active" data-index="all">
+                <span class="index-tab-name">หุ้นแสกนทั้งหมด</span>
+                <span class="index-tab-price" id="idxAllCount">8 หุ้น</span>
+                <span class="index-tab-change val-pos" id="idxAllChange">Simulator</span>
+              </div>
+              <div class="index-tab" data-index="sp500">
+                <span class="index-tab-name">S&P 500 Index</span>
+                <span class="index-tab-price" id="idxSpPrice">$5,472.00</span>
+                <span class="index-tab-change val-pos" id="idxSpChange">+0.48%</span>
+              </div>
+              <div class="index-tab" data-index="nasdaq">
+                <span class="index-tab-name">Nasdaq 100</span>
+                <span class="index-tab-price" id="idxNasPrice">$19,832.00</span>
+                <span class="index-tab-change val-pos" id="idxNasChange">+1.25%</span>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-wrap">
+              <table class="stock-table">
+                <thead>
+                  <tr>
+                    <th id="thTicker">Ticker ⇅</th>
+                    <th id="thMomentum">Momentum (1M) ⇅</th>
+                    <th id="thVolSurge">Volume Surge ⇅</th>
+                    <th id="thQuality">Quality ⇅</th>
+                    <th id="thScore">Radar Score ⇅</th>
+                    <th id="thPrice">ราคาล่าสุด ⇅</th>
+                  </tr>
+                </thead>
+                <tbody id="stockRows">
+                  <!-- JS will render rows here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Watchlist View Panel -->
+          <div class="view-panel" id="viewWatchlists">
+            <div class="panel-grid" id="watchlistContainer">
+              <!-- Render Watchlist Cards here -->
+            </div>
+          </div>
+
+          <!-- Portfolio / History View Panel -->
+          <div class="view-panel" id="viewPortfolio">
+            <div class="panel-grid">
+              
+              <!-- Portfolio Stats -->
+              <div class="summary-grid" style="margin-bottom: 0;">
+                <div class="summary-card">
+                  <span class="summary-label">เงินสดสุทธิ (USD)</span>
+                  <span class="summary-val" id="portCashVal">$100,000.00</span>
+                </div>
+                <div class="summary-card">
+                  <span class="summary-label">มูลค่าหุ้นรวม</span>
+                  <span class="summary-val" id="portStocksVal">$0.00</span>
+                </div>
+                <div class="summary-card">
+                  <span class="summary-label">พอร์ตรวมทั้งหมด</span>
+                  <span class="summary-val" id="portTotalVal">$100,000.00</span>
+                </div>
+                <div class="summary-card">
+                  <span class="summary-label">กำไรสุทธิทั้งหมด (P/L)</span>
+                  <span class="summary-val" id="portTotalPnl">$0.00 (0.00%)</span>
+                </div>
+              </div>
+
+              <!-- Owned Shares Table -->
+              <div class="watchlist-group-card">
+                <div class="watchlist-group-header">
+                  <h3 class="watchlist-group-title">หุ้นในพอร์ตโฟลิโอของคุณ</h3>
+                </div>
+                <div class="table-wrap">
+                  <table class="stock-table">
+                    <thead>
+                      <tr>
+                        <th>Ticker</th>
+                        <th>จำนวนหุ้น</th>
+                        <th>ราคาเฉลี่ย</th>
+                        <th>ราคาปัจจุบัน</th>
+                        <th>มูลค่ารวม</th>
+                        <th>กำไร/ขาดทุน (P/L)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="portfolioRows">
+                      <!-- Render owned shares -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Trade Logs -->
+              <div class="watchlist-group-card">
+                <div class="watchlist-group-header">
+                  <h3 class="watchlist-group-title">ประวัติการทำรายการซื้อขาย</h3>
+                  <button class="btn-extrude tan" id="btnClearHistory" style="padding: 6px 12px; font-size: 11px;">ล้างประวัติ</button>
+                </div>
+                <div class="table-wrap" style="max-height: 250px; overflow-y: auto;">
+                  <table class="stock-table">
+                    <thead>
+                      <tr>
+                        <th>เวลาทำรายการ</th>
+                        <th>Ticker</th>
+                        <th>ประเภท</th>
+                        <th>จำนวน</th>
+                        <th>ราคา</th>
+                        <th>มูลค่ารวม</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tradeLogRows">
+                      <!-- Render trade history -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Achievements Stamp Book Card -->
+              <div class="watchlist-group-card">
+                <div class="watchlist-group-header">
+                  <h3 class="watchlist-group-title">🏆 สมุดสะสมตราปั๊มภารกิจเทรดเดอร์ (Achievements)</h3>
+                </div>
+                <div class="stamp-book-grid">
+                  <div class="stamp-slot" id="questApprentice">
+                    <div class="stamp-ink locked" id="stampApprenticeInk">หมาป่า<br>ฝึกหัด</div>
+                    <div class="stamp-title">หมาป่าฝึกหัด</div>
+                    <div class="stamp-desc">ทำกำไรสะสมพอร์ตรวมรวมได้ ≥ 10%</div>
+                  </div>
+                  <div class="stamp-slot" id="questDeepValue">
+                    <div class="stamp-ink locked" id="stampDeepValueInk">นักช้อน<br>ของดี</div>
+                    <div class="stamp-title">นักช้อนของดี</div>
+                    <div class="stamp-desc">ซื้อหุ้นเมื่อ RSI ต่ำกว่า 35</div>
+                  </div>
+                  <div class="stamp-slot" id="questVolumeRaider">
+                    <div class="stamp-ink locked" id="stampVolumeInk">ราชา<br>เก็งกำไร</div>
+                    <div class="stamp-title">ราชาเก็งกำไร</div>
+                    <div class="stamp-desc">ซื้อหุ้นตอน Volume Surge ≥ 3.0x</div>
+                  </div>
+                  <div class="stamp-slot" id="questFolderCollector">
+                    <div class="stamp-ink locked" id="stampFolderInk">นักสะสม<br>แฟ้ม</div>
+                    <div class="stamp-title">นักสะสมแฟ้ม</div>
+                    <div class="stamp-desc">มีหุ้นใน Watchlist ครบ 5 ตัวขึ้นไป</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Leaderboard View Panel -->
+          <div class="view-panel" id="viewLeaderboard">
+            <div class="panel-grid">
+              <div class="watchlist-group-card">
+                <div class="watchlist-group-header">
+                  <h3 class="watchlist-group-title">ตารางอันดับมหาเศรษฐีจำลอง (Leaderboard)</h3>
+                  <span style="font-size: 12px; color: var(--muted); font-weight: 600;">อัพเดทเรียลไทม์</span>
+                </div>
+                <div class="leaderboard-list" id="leaderboardList">
+                  <!-- Render leaderboard players -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Currency Exchange View Panel -->
+          <div class="view-panel" id="viewExchange">
+            <div class="panel-grid">
+              <div class="exchange-card">
+                <h3 class="exchange-title">แลกเปลี่ยนเงินตราสกุล THB / USD</h3>
+                
+                <div class="exchange-box">
+                  <!-- THB side -->
+                  <div class="exchange-input-group">
+                    <div class="exchange-input-wrap">
+                      <span class="exchange-label">โอนออก (Pay)</span>
+                      <input type="number" id="exPayInput" class="exchange-input" value="35000" min="0">
+                    </div>
+                    <span class="exchange-currency" id="exPayCurr">THB</span>
+                  </div>
+                  
+                  <!-- Swap button -->
+                  <button class="exchange-swap-btn" id="btnSwapCurrency">⇅</button>
+                  
+                  <!-- USD side -->
+                  <div class="exchange-input-group">
+                    <div class="exchange-input-wrap">
+                      <span class="exchange-label">ได้รับประมาณ (Receive)</span>
+                      <input type="number" id="exReceiveInput" class="exchange-input" value="1000" readonly>
+                    </div>
+                    <span class="exchange-currency" id="exReceiveCurr">USD</span>
+                  </div>
+                </div>
+
+                <div class="exchange-rate-note" id="exchangeRateText">
+                  อัตราแลกเปลี่ยนปัจจุบัน: 1 USD ≈ 35.00 THB (ไม่มีค่าธรรมเนียม)
+                </div>
+
+                <div style="display: flex; gap: 10px; font-size: 12px; font-weight: 700; margin-bottom: 16px; justify-content: space-between; background: var(--bg-soft); padding: 8px; border-radius: 8px;">
+                  <span>ยอดคงเหลือจำลอง (THB): <span id="exThbBalance">฿1,000,000.00</span></span>
+                  <span>ยอดคงเหลือ (USD): <span id="exUsdBalance">$100,000.00</span></span>
+                </div>
+
+                <button class="btn-extrude matcha" id="btnExecuteExchange" style="width: 100%; padding: 12px;">
+                  ยืนยันการแลกเปลี่ยนสกุลเงิน
+                </button>
+              </div>
+
+              <!-- Simulation Settings Card -->
+              <div class="exchange-card" style="border-color: var(--pink); box-shadow: 5px 5px 0 var(--pink);">
+                <h3 class="exchange-title" style="color: var(--pink); border-bottom-color: var(--line-soft);">⚙️ ตั้งค่าระบบบัญชีจำลอง</h3>
+                
+                <div class="filter-group" style="margin-bottom: 14px;">
+                  <label for="settingsStartingCash" class="filter-label">เงินทุนเริ่มต้นจำลอง (USD):</label>
+                  <input type="number" id="settingsStartingCash" class="search-input" value="100000" min="1000" step="5000">
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                  <button class="btn-extrude tan" id="btnResetAllData" style="flex: 1; padding: 10px;">
+                    🗑️ ล้างพอร์ตโฟลิโอ
+                  </button>
+                  <button class="btn-extrude matcha" id="btnApplySettings" style="flex: 1; padding: 10px; background: var(--pink) !important; border-color: var(--text) !important; color: white !important;">
+                    💾 บันทึกเงินทุน
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           RIGHT PANEL (Stock Detail, Chart & Simulated Trading)
+           ==================================================================== -->
+      <aside class="detail" id="detailPanel">
+        <!-- Stock Details Header -->
+        <div class="detail-header">
+          <div class="detail-title-wrap">
+            <span class="detail-eyebrow" id="detSector">เซกเตอร์: Semiconductors</span>
+            <div class="detail-ticker-row">
+              <h2 class="detail-ticker" id="detTicker">-</h2>
+              <button class="detail-watchlist-btn" id="btnToggleWatchlist" title="บันทึกเข้า Watchlist">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+              </button>
+            </div>
+            <p class="detail-desc" id="detName">กรุณาเลือกหุ้นจากตารางแสกนเพื่อดูรายละเอียดธุรกิจ</p>
+          </div>
+        </div>
+
+        <!-- Custom Price Chart Box -->
+        <div class="chart-box">
+          <div class="chart-header">
+            <div class="chart-tabs" id="chartTypeTabs">
+              <button class="chart-tab active" data-type="price">Price</button>
+              <button class="chart-tab" data-type="candles">Candles 🕯️</button>
+              <button class="chart-tab" data-type="relative">Relative</button>
+              <button class="chart-tab" data-type="volume">Volume</button>
+            </div>
+            
+            <div class="chart-range-tabs" id="chartRangeTabs">
+              <button class="chart-range-btn" data-range="5d">5D</button>
+              <button class="chart-range-btn active" data-range="30d">1M</button>
+              <button class="chart-range-btn" data-range="90d">3M</button>
+              <button class="chart-range-btn" data-range="252d">1Y</button>
+            </div>
+          </div>
+          
+          <div class="chart-canvas-wrap">
+            <canvas id="stockPriceChart" class="chart-canvas" width="600" height="380"></canvas>
+            
+            <!-- Sketchy SVG path overlay -->
+            <svg id="chartPenOverlay" class="chart-pen-overlay" preserveAspectRatio="none">
+              <defs>
+                <filter id="chartSketchFilter" x="-5%" y="-5%" width="110%" height="110%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="5" result="noise"></feTurbulence>
+                  <feDisplacementMap in="SourceGraphic" in2="noise" scale="3"></feDisplacementMap>
+                </filter>
+              </defs>
+              <path id="chartPenPath" class="chart-pen-line" d=""></path>
+              <circle id="chartPenDot" class="chart-pen-dot" r="4.5" cx="-10" cy="-10"></circle>
+              
+              <!-- Hover crosshairs & dot -->
+              <line id="chartHoverXLine" class="chart-hover-line" x1="-10" y1="0" x2="-10" y2="0"></line>
+              <circle id="chartHoverDot" class="chart-hover-dot" r="4" cx="-10" cy="-10"></circle>
+            </svg>
+            
+            <!-- Chart interactive hover tooltip -->
+            <div id="chartTooltip" class="chart-tooltip">
+              <div id="tooltipPrice">$0.00</div>
+              <div id="tooltipDate">—</div>
+            </div>
+          </div>
+          
+          <!-- Chart Drawing Annotation Toolbar -->
+          <div class="drawing-toolbar">
+            <span class="toolbar-label">✍️ ดินสอโน้ต:</span>
+            <button class="draw-btn" id="drawPenBtn" title="ปากกาจดโน้ต">✏️ ปากกา</button>
+            <button class="draw-btn" id="drawMarkerBtn" title="ปากกาไฮไลต์">🖍️ ไฮไลท์</button>
+            <button class="draw-btn" id="drawEraserBtn" title="ยางลบ">🧽 ยางลบ</button>
+            <button class="draw-btn clear" id="drawClearBtn" title="ล้างรูปวาดทั้งหมด">🗑️ ล้างภาพ</button>
+          </div>
+        </div>
+
+        <!-- Chart Options (Indicators) -->
+        <div style="display: flex; gap: 12px; margin-bottom: 12px; font-size: 11px; font-weight: 700; background: var(--bg-soft); padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--text); justify-content: space-around;">
+          <span style="color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">ตัวชี้วัด (Indicators):</span>
+          <label class="checkbox-toggle" for="toggleMA20" style="font-size: 11px; margin-bottom: 0;">
+            <input type="checkbox" id="toggleMA20" style="width: 14px; height: 14px; margin-bottom: 0;">
+            <span style="color: var(--maple-deep);">เส้นเฉลี่ย MA20</span>
+          </label>
+          <label class="checkbox-toggle" for="toggleMA50" style="font-size: 11px; margin-bottom: 0;">
+            <input type="checkbox" id="toggleMA50" style="width: 14px; height: 14px; margin-bottom: 0;">
+            <span style="color: var(--purple-deep);">เส้นเฉลี่ย MA50</span>
+          </label>
+        </div>
+
+        <!-- Hero Stats Price Display -->
+        <div class="price-hero">
+          <span class="price-hero-val" id="detPrice">- USD</span>
+          <span class="price-hero-change" id="detChange">-</span>
+        </div>
+
+        <!-- Stock detailed info parameters grid -->
+        <div class="detail-grid">
+          <div class="detail-grid-row">
+            <span class="dg-lbl">Market Cap</span>
+            <span class="dg-val" id="detMarketCap">-</span>
+          </div>
+          <div class="detail-grid-row">
+            <span class="dg-lbl">Radar Score</span>
+            <span class="dg-val" id="detRadarScore">-</span>
+          </div>
+          <div class="detail-grid-row">
+            <span class="dg-lbl">RSI (14)</span>
+            <span class="dg-val" id="detRsi">-</span>
+          </div>
+          <div class="detail-grid-row">
+            <span class="dg-lbl">Volume Surge</span>
+            <span class="dg-val" id="detVolSurgeVal">-</span>
+          </div>
+          <div class="detail-grid-row">
+            <span class="dg-lbl">Revenue Growth</span>
+            <span class="dg-val" id="detGrowth">-</span>
+          </div>
+          <div class="detail-grid-row">
+            <span class="dg-lbl">Debt / Asset</span>
+            <span class="dg-val" id="detDebt">-</span>
+          </div>
+          <div class="detail-grid-row">
+            <span class="dg-lbl">Float</span>
+            <span class="dg-val" id="detFloat">-</span>
+          </div>
+          <div class="detail-grid-row">
+            <span class="dg-lbl">Risk Profile</span>
+            <span class="dg-val" id="detRisk">-</span>
+          </div>
+        </div>
+
+        <!-- Simulated Stock Trading Order Form widget -->
+        <div class="trade-card">
+          <div class="trade-position-info">
+            <span class="tpi-shares" id="trPositionShares">ยังไม่มีหุ้น</span>
+            <span class="tpi-avg" id="trPositionAvg">AVG —</span>
+            <span class="tpi-pnl" id="trPositionPnl">—</span>
+          </div>
+          <div class="trade-actions">
+            <button class="trade-btn buy" id="btnOrderBuy">Buy Stock</button>
+            <button class="trade-btn sell" id="btnOrderSell">Sell Stock</button>
+          </div>
+        </div>
+
+        <!-- AI Mascot Assistant "HoshiSen" dialogue bubble -->
+        <div class="mascot-area">
+          <div class="mascot-profile">
+            <div class="mascot-avatar">🦊</div>
+            <div class="mascot-name-wrap">
+              <span class="mascot-name">HoshiSen (โฮชิเซ็น)</span>
+              <span class="mascot-title">AI Investing Mascot</span>
+            </div>
+          </div>
+          
+          <div class="mascot-bubble">
+            <p class="mascot-bubble-text" id="mascotBubbleText">สวัสดีค่ะ! คลิกเลือกหุ้นที่อยากให้หนูวิเคราะห์ได้เลยค่ะ หรือพิมพ์คำถามมาคุยกับหนูข้างล่างนี้ได้เลยนะค๊า!</p>
+          </div>
+
+          <!-- Free text chatbot input form -->
+          <form class="mascot-chat-form" id="mascotChatForm" autocomplete="off">
+            <input type="text" id="mascotChatInput" placeholder="ถามข้อมูลหรือคุยกับหนูตรงนี้..." class="mascot-chat-input">
+            <button type="submit" class="mascot-chat-submit">ส่ง 💬</button>
+          </form>
+          
+          <!-- Simulated prompt button triggers -->
+          <div class="mascot-actions">
+            <button class="mascot-ask-btn" data-ask="business">
+              🏢 ทำธุรกิจอะไร?
+            </button>
+            <button class="mascot-ask-btn" data-ask="why">
+              📈 ทำไมราคาถึงขึ้น?
+            </button>
+            <button class="mascot-ask-btn" data-ask="financial">
+              📊 งบการเงินย้อนหลัง
+            </button>
+            <button class="mascot-ask-btn" data-ask="news">
+              📰 ข่าวสารล่าสุด
+            </button>
+          </div>
+        </div>
+      </aside>
+
+    </main>
+
+    <!-- Bottom Navigation Bar - Mobile View Only -->
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
+        <a class="bottom-nav-item active" data-tab="scanner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Radar</span>
+        </a>
+        <a class="bottom-nav-item" data-tab="watchlist">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          <span>Watchlist</span>
+        </a>
+        <a class="bottom-nav-item" data-tab="portfolio">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+          <span>Portfolio</span>
+        </a>
+        <a class="bottom-nav-item" data-tab="leaderboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7a5 5 0 0 0-5 5v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a5 5 0 0 0-5-5h-3V7a2 2 0 0 1 2-2h3a2 2 0 0 0 2-2V2z"/>
+          </svg>
+          <span>Ranking</span>
+        </a>
+        <a class="bottom-nav-item" data-tab="exchange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+          <span>Exchange</span>
+        </a>
+      </div>
+    </nav>
+
+  </div>
+
+  <!-- Toast Notification message box -->
+  <div class="toast-msg" id="toastContainer"></div>
+
+  <!-- Watchlist Picker Modal -->
+  <div class="modal-overlay" id="watchlistModal">
+    <div class="modal-box">
+      <h3 class="modal-title">เพิ่มหุ้นเข้ากลุ่ม Watchlist</h3>
+      <div class="modal-content">
+        <p style="font-size: 12px; color: var(--muted); margin-bottom: 10px;">เลือกกลุ่มที่ต้องการเพิ่มหุ้น <span id="wlModalTicker" style="color: var(--olive); font-weight: 800;">-</span></p>
+        <div class="checklist-box" id="watchlistChecklist">
+          <!-- Render watchlist checkboxes -->
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" id="btnWlCancel">ยกเลิก</button>
+        <button class="modal-btn confirm" id="btnWlConfirm">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order / Trade Input Modal -->
+  <div class="modal-overlay" id="orderModal">
+    <div class="modal-box">
+      <h3 class="modal-title" id="ordModalTitle">ทำรายการสั่งซื้อหุ้น</h3>
+      <div class="modal-content">
+        <div style="background: var(--bg-soft); padding: 12px; border-radius: 10px; margin-bottom: 14px; border: 1.5px solid var(--text);">
+          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 6px;">
+            <span>สัญลักษณ์หุ้น:</span>
+            <span id="ordModalTicker" style="font-family: var(--font-mono);">SOUN</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 6px;">
+            <span>ราคาตลาดล่าสุด:</span>
+            <span id="ordModalPrice" style="font-family: var(--font-mono);">$6.22</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700;">
+            <span>เงินลงทุนที่ใช้ได้:</span>
+            <span id="ordModalCash" style="font-family: var(--font-mono);">$100,000.00</span>
+          </div>
+        </div>
+        
+        <div class="filter-group">
+          <label for="ordQuantityInput" class="filter-label">จำนวนหุ้นที่ต้องการ:</label>
+          <input type="number" id="ordQuantityInput" class="search-input" value="100" min="1" step="1">
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 800; margin-top: 14px; padding: 4px;">
+          <span>ประมาณการยอดรวม:</span>
+          <span id="ordModalTotal" style="font-family: var(--font-mono);">$622.00</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" id="btnOrdCancel">ยกเลิก</button>
+        <button class="modal-btn confirm" id="btnOrdConfirm">ส่งคำสั่งซื้อ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript logic -->
+  <script src="./app.js"></script>
+</body>
+</html>
