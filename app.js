@@ -158,6 +158,7 @@ const companySecond = ["Vironment", "Systems", "Technologies", "Genomics", "Netw
 
 // Generate mock stocks up to N
 function buildDatabase(size = 50) {
+  baseStocks.forEach(s => s.isReal = true);
   const list = [...baseStocks];
   
   for (let i = baseStocks.length; i < size; i++) {
@@ -470,7 +471,10 @@ async function queryStockFromYahoo(symbol, range = "1mo") {
   }
   
   try {
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
     if (!response.ok) throw new Error("Yahoo fetch failed");
     let json = await response.json();
     
@@ -2145,6 +2149,36 @@ function switchTab(tabId) {
 // ==========================================================================
 // 11. Sync / Live Yahoo Finance Database Update
 // ==========================================================================
+function updateMockStock(stock) {
+  const rand = seededRandom(stock.name.length + Date.now());
+  const change = 0.985 + rand() * 0.03;
+  stock.price = Number((stock.price * change).toFixed(2));
+  stock.prices.push(stock.price);
+  stock.prices.shift();
+  
+  if (stock.opens && stock.opens.length > 0) {
+    const open = stock.price * (0.99 + rand() * 0.02);
+    const high = Math.max(open, stock.price) * (1 + rand() * 0.015);
+    const low = Math.min(open, stock.price) * (1 - rand() * 0.015);
+    stock.opens.push(Number(open.toFixed(2)));
+    stock.opens.shift();
+    stock.highs.push(Number(high.toFixed(2)));
+    stock.highs.shift();
+    stock.lows.push(Number(low.toFixed(2)));
+    stock.lows.shift();
+  }
+  
+  if (stock.volumes && stock.volumes.length > 0) {
+    const lastVol = stock.volumes[stock.volumes.length - 1] || 1.0;
+    const vol = Math.max(0.1, lastVol * (0.8 + rand() * 0.4));
+    stock.volumes.push(Number(vol.toFixed(2)));
+    stock.volumes.shift();
+  }
+}
+
+// ==========================================================================
+// 11. Sync / Live Yahoo Finance Database Update
+// ==========================================================================
 async function simulateDatabaseUpdate() {
   if (state.syncing) return;
   state.syncing = true;
@@ -2160,23 +2194,24 @@ async function simulateDatabaseUpdate() {
     const stock = stocksDB[idx];
     const progress = Math.round(((idx + 1) / total) * 100);
     els.syncProgress.style.width = `${progress}%`;
-    els.syncStatus.textContent = `กำลังโหลดข้อมูลหุ้นจริงจาก Yahoo... ${stock.ticker} (${idx + 1}/${total})`;
     
-    try {
-      const updated = await queryStockFromYahoo(stock.ticker, "1y");
-      Object.assign(stock, updated);
+    if (stock.isReal) {
+      els.syncStatus.textContent = `กำลังโหลดข้อมูลหุ้นจริงจาก Yahoo... ${stock.ticker} (${idx + 1}/${total})`;
+      try {
+        const updated = await queryStockFromYahoo(stock.ticker, "1y");
+        Object.assign(stock, updated);
+        successCount++;
+      } catch (err) {
+        console.warn(`Failed updating ${stock.ticker}`, err);
+        updateMockStock(stock);
+      }
+    } else {
+      els.syncStatus.textContent = `กำลังจำลองราคาหุ้น... ${stock.ticker} (${idx + 1}/${total})`;
+      updateMockStock(stock);
       successCount++;
-    } catch (err) {
-      console.warn(`Failed updating ${stock.ticker}`, err);
-      // Fallback Jitter
-      const rand = seededRandom(stock.name.length + Date.now());
-      const change = 0.98 + rand() * 0.04;
-      stock.price = Number((stock.price * change).toFixed(2));
-      stock.prices.push(stock.price);
-      stock.prices.shift();
     }
     // Tiny throttle sleep to prevent Yahoo rate block
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise(r => setTimeout(r, 20));
   }
   
   state.syncing = false;
@@ -2583,6 +2618,7 @@ async function init() {
     for (let i = 0; i < Math.min(initialRealTickers.length, stocksDB.length); i++) {
       try {
         const realStock = await queryStockFromYahoo(initialRealTickers[i], "1y");
+        realStock.isReal = true;
         stocksDB[i] = realStock;
       } catch (err) {
         console.warn(`Could not load real data for ${initialRealTickers[i]} on init`);
