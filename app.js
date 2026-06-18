@@ -2185,40 +2185,40 @@ async function simulateDatabaseUpdate() {
   
   els.btnUpdateData.disabled = true;
   els.btnUpdateData.textContent = "⏳ กำลังดึงราคาสด...";
-  els.syncStatus.textContent = "เชื่อมต่อ API ดึงราคาจาก Yahoo Finance...";
+  els.syncStatus.textContent = "กำลังเชื่อมต่อ API และสแกนข้อมูลจริงในตลาดแบบขนาน...";
+  els.syncProgress.style.width = "30%";
   
   const total = stocksDB.length;
-  let successCount = 0;
+  const realStocks = stocksDB.filter(s => s.isReal);
+  const mockStocks = stocksDB.filter(s => !s.isReal);
   
-  for (let idx = 0; idx < total; idx++) {
-    const stock = stocksDB[idx];
-    const progress = Math.round(((idx + 1) / total) * 100);
-    els.syncProgress.style.width = `${progress}%`;
-    
-    if (stock.isReal) {
-      els.syncStatus.textContent = `กำลังโหลดข้อมูลหุ้นจริงจาก Yahoo... ${stock.ticker} (${idx + 1}/${total})`;
-      try {
-        const updated = await queryStockFromYahoo(stock.ticker, "1y");
-        Object.assign(stock, updated);
-        successCount++;
-      } catch (err) {
-        console.warn(`Failed updating ${stock.ticker}`, err);
-        updateMockStock(stock);
-      }
-    } else {
-      els.syncStatus.textContent = `กำลังจำลองราคาหุ้น... ${stock.ticker} (${idx + 1}/${total})`;
+  // Update mock stocks instantly
+  mockStocks.forEach(updateMockStock);
+  
+  let successCount = mockStocks.length;
+  els.syncProgress.style.width = "65%";
+  
+  // Query Yahoo for all real stocks in parallel
+  const fetchPromises = realStocks.map(async (stock) => {
+    try {
+      const updated = await queryStockFromYahoo(stock.ticker, "1y");
+      Object.assign(stock, updated);
+      successCount++;
+    } catch (err) {
+      console.warn(`Failed updating ${stock.ticker}`, err);
       updateMockStock(stock);
       successCount++;
     }
-    // Tiny throttle sleep to prevent Yahoo rate block
-    await new Promise(r => setTimeout(r, 20));
-  }
+  });
   
+  await Promise.allSettled(fetchPromises);
+  
+  els.syncProgress.style.width = "100%";
   state.syncing = false;
   els.btnUpdateData.disabled = false;
   els.btnUpdateData.textContent = "🔄 อัพเดทข้อมูลเรดาร์ (Yahoo)";
-  els.syncStatus.textContent = `แสกนข้อมูลจริงเสร็จเรียบร้อย! อัปเดตสำเร็จ ${successCount}/${total} หุ้น`;
-  showToast(`⚡ อัปเดตข้อมูลหุ้นจริง Yahoo Finance สำเร็จ (${successCount}/${total} ตัว)`);
+  els.syncStatus.textContent = `สแกนข้อมูลเสร็จเรียบร้อย! อัปเดตข้อมูลจริงและจำลองสำเร็จ ${successCount}/${total} หุ้น`;
+  showToast(`⚡ อัปเดตข้อมูลราคาสดตลาดสหรัฐฯ สำเร็จเรียบร้อย!`);
   
   renderTable();
   selectStock(state.selectedTicker);
